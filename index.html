@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>가로수케어노트</title>
+  
+  <!-- PWA & 모바일 웹앱 메타 태그 설정 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="가로수케어">
+  <meta name="theme-color" content="#059669">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3063/3063822.png">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+    .touch-target { -webkit-tap-highlight-color: transparent; }
+    .recording-pulse { animation: pulse 1.5s infinite; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+  </style>
+</head>
+<body class="bg-emerald-950/5 min-h-screen flex justify-center p-0 sm:p-4">
+
+  <div class="w-full max-w-md bg-white min-h-screen sm:min-h-[844px] sm:rounded-3xl sm:shadow-2xl flex flex-col justify-between overflow-hidden relative">
+    
+    <!-- PWA 홈 화면 추가 상단 안내 배너 -->
+    <div id="pwa-install-banner" class="hidden bg-emerald-700 text-white px-4 py-2.5 flex items-center justify-between shadow-md z-50 animate-pulse">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center text-white text-sm">
+          <i class="fa-solid fa-mobile-screen-button"></i>
+        </div>
+        <div class="text-left">
+          <p class="text-[11px] font-black leading-tight">가로수케어노트 앱 설치</p>
+          <p class="text-[10px] text-emerald-100 font-medium">홈 화면에 아이콘을 추가해 바로 접속하세요</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1.5">
+        <button type="button" onclick="triggerPwaInstall()" class="bg-white text-emerald-900 font-extrabold text-[11px] px-2.5 py-1.5 rounded-lg shadow-sm active:scale-95 transition">
+          설치
+        </button>
+        <button type="button" onclick="dismissPwaBanner()" class="text-white/80 hover:text-white text-xs p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- [화면 1] 4자리 마스터 비밀번호 게이트 -->
+    <div id="view-site-lock" class="flex-1 p-6 flex flex-col justify-center items-center bg-slate-900 text-white z-40">
+      <div class="w-full max-w-xs space-y-8 text-center my-auto">
+        <div class="space-y-4">
+          <div class="w-20 h-20 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/40 text-emerald-400 text-3xl shadow-lg shadow-emerald-900/40">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h2 class="text-2xl font-black tracking-tight text-white">가로수재가복지센터</h2>
+            <p class="text-xs text-slate-400 mt-1 font-medium">인가된 관계자 전용 안심 시스템</p>
+          </div>
+        </div>
+
+        <div class="space-y-4 pt-2">
+          <div class="space-y-2">
+            <label class="block text-center text-xs text-slate-300 font-medium">접속 비밀번호 4자리</label>
+            <input type="password" id="site-password-input" maxlength="4" placeholder="••••" 
+                   inputmode="numeric" autocomplete="off"
+                   onkeydown="if(event.key==='Enter') checkSitePassword()"
+                   class="w-full text-center text-3xl tracking-widest font-black py-4 bg-slate-800 border-2 border-slate-700 rounded-2xl text-white focus:outline-none focus:border-emerald-500 transition">
+          </div>
+          <button type="button" onclick="checkSitePassword()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-95 transition">
+            보안 해제 및 입장
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- [화면 2] 자체 로그인 화면 -->
+    <div id="view-login" class="hidden flex-1 p-6 flex flex-col justify-center items-center bg-white">
+      <div class="w-full max-w-xs space-y-6 text-center my-auto">
+        <div class="space-y-3">
+          <div class="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center p-3 shadow-md mx-auto border border-emerald-100">
+            <svg viewBox="0 0 100 100" class="w-full h-full">
+              <path d="M50 15 C75 15 88 40 78 70 C70 85 52 90 48 95 C48 85 45 75 42 65 C48 68 56 68 62 60 C55 58 48 55 42 50 C40 38 42 25 50 15 Z" fill="#2eb872"/>
+              <path d="M50 15 C30 25 22 55 35 80 C40 88 48 95 48 95 C48 80 43 65 35 55 C42 52 50 56 55 50 C48 45 42 35 50 15 Z" fill="#4cd08a"/>
+              <path d="M48 95 C48 70 42 50 58 35 M44 65 C52 68 60 62 62 60" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-2xl font-black text-slate-800 tracking-tight">가로수케어노트</h2>
+            <p class="text-xs text-slate-500 mt-1 font-medium">관리자 1회 승인제 안심 시스템</p>
+          </div>
+        </div>
+
+        <div class="space-y-4 text-left">
+          <div>
+            <span class="block text-xs font-bold text-slate-500 mb-2">접속 권한 선택</span>
+            <div class="bg-slate-100 p-1.5 rounded-2xl grid grid-cols-3 gap-1 text-xs font-bold text-center">
+              <button type="button" id="role-admin" onclick="selectRole('admin')" class="py-2.5 rounded-xl text-slate-600 transition">🏢 관리자</button>
+              <button type="button" id="role-caregiver" onclick="selectRole('caregiver')" class="py-2.5 rounded-xl bg-emerald-600 text-white shadow-sm transition">✍️ 보호사</button>
+              <button type="button" id="role-guardian" onclick="selectRole('guardian')" class="py-2.5 rounded-xl text-slate-600 transition">👀 보호자</button>
+            </div>
+          </div>
+
+          <div id="login-form-staff" class="space-y-2.5">
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">아이디 / 사번</label>
+              <div class="relative">
+                <i class="fa-solid fa-user absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                <input type="text" id="login-id-input" placeholder="아이디를 입력하세요" 
+                       class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-emerald-500 focus:outline-none transition">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-600 mb-1">비밀번호</label>
+              <div class="relative">
+                <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                <input type="password" id="login-pw-input" placeholder="비밀번호" 
+                       onkeydown="if(event.key==='Enter') handleCustomLogin()"
+                       class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:bg-white focus:border-emerald-500 focus:outline-none transition">
+              </div>
+            </div>
+          </div>
+
+          <div id="login-form-guardian" class="hidden p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl text-center space-y-1">
+            <p class="text-xs font-bold text-emerald-900">가족/보호자 안심 안내</p>
+            <p class="text-[11px] text-emerald-700">개인정보 보호를 위해 센터 승인 후<br><strong>안전하게 알림장을 열람</strong>하실 수 있습니다.</p>
+          </div>
+
+          <button type="button" onclick="handleCustomLogin()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-95 transition">
+            <span id="custom-login-btn-text">요양보호사 로그인</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- [화면 3] 메인 앱 영역 -->
+    <div id="view-main-app" class="hidden flex-1 flex flex-col justify-between bg-white">
+      <header class="bg-emerald-600 text-white p-4 pt-6 shadow-sm flex justify-between items-center z-10 sticky top-0">
+        <div>
+          <h1 class="text-lg font-black leading-none">가로수케어노트</h1>
+          <span class="text-[11px] text-emerald-100 font-medium" id="header-user-badge"></span>
+        </div>
+        <button type="button" onclick="logout()" class="text-xs bg-emerald-800/80 hover:bg-emerald-800 px-3 py-1.5 rounded-lg text-emerald-100 font-bold flex items-center space-x-1">
+          <i class="fa-solid fa-arrow-right-from-bracket text-[10px]"></i>
+          <span>로그아웃</span>
+        </button>
+      </header>
+
+      <!-- 1. 관리자 모드 -->
+      <main id="view-admin" class="hidden flex-1 p-5 space-y-4 overflow-y-auto bg-slate-50">
+        
+        <!-- 오늘의 돌봄 일지 작성 현황판 -->
+        <div class="bg-white p-4 rounded-2xl border border-emerald-200 shadow-sm space-y-2.5">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+              <i class="fa-solid fa-chart-pie text-emerald-600"></i>
+              <span>오늘의 돌봄 일지 작성 현황</span>
+            </h3>
+            <span id="today-report-ratio" class="text-xs font-black text-emerald-700">0 / 0명 (0%)</span>
+          </div>
+          <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+            <div id="today-progress-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <div class="flex justify-between text-[11px] font-bold pt-0.5">
+            <span class="text-emerald-700" id="stat-completed-count">작성 완료: 0명</span>
+            <span class="text-amber-600" id="stat-pending-count">미작성: 0명</span>
+          </div>
+        </div>
+
+        <!-- 보호자 연동 승인 관리 -->
+        <div class="bg-white p-4 rounded-2xl border-2 border-emerald-500/30 space-y-3 shadow-sm">
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
+              <i class="fa-solid fa-user-check text-emerald-600"></i>
+              <span>보호자 연동 승인 관리</span>
+            </h3>
+            <span id="admin-pending-badge" class="text-[10px] bg-red-100 text-red-600 font-extrabold px-2 py-0.5 rounded-full">대기 0건</span>
+          </div>
+          <p class="text-[11px] text-slate-500">보호자가 신청 시 승인해 주셔야 알림장이 열립니다.</p>
+          <div id="admin-approval-list" class="space-y-2"></div>
+        </div>
+
+        <!-- 요양보호사 신규 계정 발급 -->
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
+            <i class="fa-solid fa-user-shield text-slate-700"></i>
+            <span>신규 요양보호사 계정 생성</span>
+          </h3>
+          <div class="space-y-2">
+            <input type="text" id="admin-cg-name" placeholder="보호사 성함 (예: 박영숙 요양보호사)" class="w-full p-2.5 text-xs border rounded-xl focus:border-emerald-600 focus:outline-none">
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" id="admin-cg-id" placeholder="접속 아이디 (예: care03)" class="w-full p-2.5 text-xs border rounded-xl">
+              <input type="text" id="admin-cg-pw" placeholder="비밀번호 (예: 0217)" value="0217" class="w-full p-2.5 text-xs border rounded-xl">
+            </div>
+          </div>
+          <button type="button" onclick="adminAddCaregiverAccount()" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow-md active:scale-95 transition">
+            요양보호사 계정 발급 및 등록
+          </button>
+        </div>
+
+        <!-- 신규 수급자 등록 & 배정 -->
+        <div class="bg-white p-4 rounded-2xl border space-y-3 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
+            <i class="fa-solid fa-user-plus text-emerald-600"></i>
+            <span>신규 수급자 등록 & 보호사 배정</span>
+          </h3>
+          <input type="text" id="admin-name" placeholder="어르신 성함 (예: 최영희)" class="w-full p-2.5 text-xs border rounded-xl focus:border-emerald-600 focus:outline-none">
+          <div class="grid grid-cols-2 gap-2">
+            <input type="text" id="admin-age" placeholder="연령 (예: 83세)" class="w-full p-2.5 text-xs border rounded-xl">
+            <input type="text" id="admin-time" placeholder="방문시간 (예: 오전 09:00)" class="w-full p-2.5 text-xs border rounded-xl">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[11px] text-slate-500 font-bold">담당 배정 보호사</label>
+            <select id="admin-caregiver-assign" class="w-full p-2.5 text-xs border rounded-xl bg-slate-50 font-bold text-slate-700 focus:outline-none"></select>
+          </div>
+          <button type="button" id="btn-admin-add" onclick="adminAddPatient()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md active:scale-95 transition">
+            신규 수급자 등록 및 배정 완료
+          </button>
+        </div>
+
+        <!-- 수급자 배정 현황 -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center px-1">
+            <h4 class="text-xs font-bold text-slate-500 uppercase">수급자 관리 & 오늘 작성 여부</h4>
+            <button type="button" onclick="loadAdminDataFromSupabase()" class="text-[11px] text-emerald-600 font-bold flex items-center space-x-1">
+              <i class="fa-solid fa-arrows-rotate"></i>
+              <span>새로고침</span>
+            </button>
+          </div>
+          <div id="admin-patient-list" class="space-y-2 pb-6"></div>
+        </div>
+      </main>
+
+      <!-- 2. 요양보호사 모드 -->
+      <main id="view-caregiver" class="hidden flex-1 p-5 space-y-4 overflow-y-auto bg-white">
+        <div>
+          <span class="text-xs text-slate-500 font-bold block mb-1.5">내 담당 어르신 선택</span>
+          <div id="caregiver-patient-tabs" class="flex space-x-2 overflow-x-auto pb-1"></div>
+        </div>
+
+        <!-- 어르신 정보 카드 + 보호자 바로 전화 걸기 버튼 -->
+        <div class="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200 space-y-2.5">
+          <div class="flex justify-between items-center">
+            <p class="text-lg font-extrabold text-slate-800" id="caregiver-target-name">어르신 선택</p>
+            <span class="text-[11px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full" id="caregiver-target-time">오전 09:00</span>
+          </div>
+          <span class="text-xs text-emerald-800 font-bold block" id="caregiver-target-code">보호자 연동 코드: 739204</span>
+
+          <div class="pt-1">
+            <button type="button" id="cg-call-guardian-btn" onclick="callApprovedGuardian()" class="w-full py-2.5 px-3 bg-white hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-300 font-black text-xs rounded-xl shadow-sm flex items-center justify-center space-x-2 active:scale-95 transition">
+              <i class="fa-solid fa-phone text-emerald-600 group-hover:text-white"></i>
+              <span id="cg-call-guardian-text">보호자 바로 전화 걸기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ⭐ [국민건강보험공단 스마트장기요양 앱 원클릭 열기] -->
+        <section class="p-3 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between shadow-sm">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 bg-blue-600 text-white rounded-xl flex items-center justify-center text-sm font-black shadow-sm">
+              <i class="fa-solid fa-qrcode"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-blue-950 leading-tight">공단 QR / 태그 기록</p>
+              <p class="text-[10px] text-blue-700">스마트장기요양 앱 바로가기</p>
+            </div>
+          </div>
+          <button type="button" onclick="openLongTermCareApp()" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl active:scale-95 transition shadow-sm flex items-center space-x-1">
+            <span>공단 앱 열기</span>
+            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+          </button>
+        </section>
+
+        <!-- 식사량 -->
+        <section class="space-y-1.5">
+          <label class="font-bold text-xs text-slate-700">🍚 식사량</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="setMeal('완식', this)" class="meal-btn touch-target p-2.5 border-2 rounded-xl text-xs font-bold bg-white text-slate-700">😋 완식</button>
+            <button type="button" onclick="setMeal('보통', this)" class="meal-btn touch-target p-2.5 border-2 border-emerald-600 bg-emerald-50 text-emerald-900 rounded-xl text-xs font-bold">🙂 보통</button>
+            <button type="button" onclick="setMeal('부진', this)" class="meal-btn touch-target p-2.5 border-2 rounded-xl text-xs font-bold bg-white text-slate-700">🙁 입맛없음</button>
+          </div>
+        </section>
+
+        <!-- 복약 -->
+        <section class="space-y-1.5">
+          <label class="font-bold text-xs text-slate-700">💊 복약 여부</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" onclick="setMed('복용 완료', this)" class="med-btn touch-target p-2.5 border-2 border-emerald-600 bg-emerald-50 text-emerald-900 rounded-xl text-xs font-bold">✅ 정규 복용 완료</button>
+            <button type="button" onclick="setMed('해당 없음', this)" class="med-btn touch-target p-2.5 border-2 rounded-xl text-xs font-bold bg-white text-slate-700">⚪ 복용 약 없음</button>
+          </div>
+        </section>
+
+        <!-- 사진 첨부 -->
+        <section class="space-y-1.5">
+          <label class="font-bold text-xs text-slate-700 flex justify-between items-center">
+            <span>📷 사진 첨부 (식사/활동)</span>
+            <span id="photo-status" class="text-[11px] text-slate-400 font-normal">선택 안 됨</span>
+          </label>
+          <div class="flex items-center space-x-3">
+            <label class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center space-x-2 cursor-pointer transition">
+              <i class="fa-solid fa-camera text-emerald-600 text-lg"></i>
+              <span class="text-xs font-bold text-slate-700" id="photo-btn-text">카메라 촬영 / 사진 올리기</span>
+              <input type="file" id="photo-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUploadAndCompress(event)">
+            </label>
+            <button type="button" id="photo-remove-btn" onclick="removePhoto()" class="hidden text-xs text-red-500 border border-red-200 px-3 py-3 rounded-2xl font-bold">삭제</button>
+          </div>
+          <div id="photo-preview-box" class="hidden mt-2 relative rounded-2xl overflow-hidden border max-h-52 bg-slate-100 flex items-center justify-center">
+            <img id="photo-preview-img" src="" class="w-full h-auto object-cover max-h-52">
+          </div>
+        </section>
+
+        <!-- 안심 문구 템플릿 칩 & 음성 메모 -->
+        <section class="space-y-1.5 pb-2">
+          <div class="flex justify-between items-center">
+            <label class="font-bold text-xs text-slate-700">📝 전달 메모 & 상용구 선택</label>
+            <button type="button" id="mic-btn" onclick="toggleSpeechRecognition()" class="px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold flex items-center space-x-1 transition active:scale-95">
+              <i class="fa-solid fa-microphone text-xs" id="mic-icon"></i>
+              <span id="mic-label">음성으로 말하기</span>
+            </button>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 pt-0.5">
+            <button type="button" onclick="insertQuickPhrase('컨디션이 매우 좋으시고 편안하셨습니다.')" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-600 border rounded-lg text-[11px] font-bold active:scale-95 transition">
+              😊 컨디션 좋으심
+            </button>
+            <button type="button" onclick="insertQuickPhrase('식사를 맛있게 다 드시고 기분 좋게 대화 나누셨습니다.')" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-600 border rounded-lg text-[11px] font-bold active:scale-95 transition">
+              🥣 식사 완식
+            </button>
+            <button type="button" onclick="insertQuickPhrase('가벼운 실내 걷기 운동과 체조를 함께 진행했습니다.')" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-600 border rounded-lg text-[11px] font-bold active:scale-95 transition">
+              🚶 가벼운 운동
+            </button>
+            <button type="button" onclick="insertQuickPhrase('정해진 시간에 복약 완료하였으며 건강상태 양호합니다.')" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-600 border rounded-lg text-[11px] font-bold active:scale-95 transition">
+              💊 복약 완료
+            </button>
+          </div>
+
+          <textarea id="report-memo-input" rows="3" placeholder="상용구 버튼을 터치하거나 음성으로 편하게 입력하세요." class="w-full p-3 border rounded-xl text-xs focus:border-emerald-600 focus:outline-none"></textarea>
+        </section>
+
+        <!-- 저장 버튼 -->
+        <button type="button" id="btn-save-report" onclick="saveCaregiverReport()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg active:scale-95 transition">
+          알림장 및 사진 저장하기
+        </button>
+
+        <!-- 문자 / 카톡 선택 공유 배너 -->
+        <div id="share-notification-banner" class="hidden p-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl text-center space-y-3">
+          <div>
+            <p class="text-xs font-black text-emerald-900">🎉 알림장이 정상 저장되었습니다!</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">보호자님께 바로 알림을 전달해 보세요.</p>
+          </div>
+
+          <div class="space-y-2">
+            <button type="button" onclick="sendDirectSmsToApprovedGuardian()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md flex items-center justify-center space-x-1.5 active:scale-95 transition">
+              <i class="fa-solid fa-comment-sms text-sm"></i>
+              <span id="sms-btn-label">💬 승인 보호자에게 문자 바로 보내기</span>
+            </button>
+
+            <button type="button" onclick="shareReportToKakao()" class="w-full py-3 bg-[#FEE500] hover:bg-[#FDD800] text-[#191919] font-black text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 active:scale-95 transition">
+              <i class="fa-solid fa-comment text-sm"></i>
+              <span>💛 카카오톡으로 공유하기 (무료)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 지난 작성 내역 -->
+        <section class="pt-4 border-t space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="font-bold text-xs text-slate-700 flex items-center space-x-1.5">
+              <i class="fa-solid fa-cloud-arrow-down text-emerald-600"></i>
+              <span>클라우드에 저장된 지난 작성 내역</span>
+            </h4>
+            <span class="text-[10px] text-slate-400" id="caregiver-history-count">총 0건</span>
+          </div>
+          <div id="caregiver-history-list" class="space-y-2 pb-6"></div>
+        </section>
+      </main>
+
+      <!-- 3. 보호자 모드 -->
+      <main id="view-guardian" class="hidden flex-1 p-5 space-y-4 overflow-y-auto bg-slate-50">
+        
+        <!-- [1단계] 보호자 연동 신청 폼 (개인정보 동의 포함) -->
+        <div id="guardian-unlinked" class="bg-white p-6 rounded-2xl border text-center space-y-4 shadow-sm my-auto">
+          <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-base">보호자 안심 연동 신청</h3>
+            <p class="text-xs text-slate-500 mt-1">어르신 정보 보호를 위해 센터 승인 후 열람됩니다.</p>
+          </div>
+
+          <div class="space-y-2.5 text-left">
+            <div>
+              <label class="text-[11px] font-bold text-slate-600">6자리 초대 코드</label>
+              <input type="text" id="guardian-code-input" placeholder="예: 739204" class="w-full text-center text-xl font-black p-3 border-2 border-emerald-500 rounded-xl focus:outline-none">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-600">보호자 성함</label>
+              <input type="text" id="guardian-name-input" placeholder="예: 홍길동 (자녀)" class="w-full p-2.5 text-xs border rounded-xl focus:outline-none">
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-600">보호자 연락처</label>
+              <input type="tel" id="guardian-phone-input" placeholder="예: 010-1234-5678" class="w-full p-2.5 text-xs border rounded-xl focus:outline-none">
+            </div>
+
+            <!-- 개인정보 수집 동의 체크박스 -->
+            <div class="pt-1 bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1">
+              <label class="flex items-center space-x-2 text-xs text-slate-700 cursor-pointer">
+                <input type="checkbox" id="guardian-privacy-check" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-600">
+                <span class="font-bold text-[11px]">[필수] 개인정보 수집·이용 동의</span>
+                <button type="button" onclick="openPrivacyModal()" class="text-[11px] text-emerald-700 underline font-bold ml-auto">내용보기</button>
+              </label>
+              <p class="text-[10px] text-slate-400 pl-6 leading-tight">알림장 열람 및 센터 연락을 위해 정보를 수집합니다.</p>
+            </div>
+          </div>
+
+          <button type="button" id="btn-guardian-request" onclick="guardianRequestApproval()" class="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-md active:scale-95 transition">
+            센터에 연동 승인 요청하기
+          </button>
+        </div>
+
+        <!-- [2-1단계] 승인 대기 중 안내 화면 -->
+        <div id="guardian-pending" class="hidden bg-white p-6 rounded-2xl border text-center space-y-4 shadow-sm my-auto">
+          <div class="w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto text-2xl animate-pulse">
+            <i class="fa-solid fa-clock"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-base">관리자 승인 대기 중</h3>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              <strong id="pending-patient-name" class="text-emerald-700">어르신</strong> 님의 알림장 연동 요청이<br>
+              센터 관리자에게 전달되었습니다.
+            </p>
+          </div>
+          <div class="p-3 bg-slate-50 rounded-xl border text-[11px] text-slate-600 text-left space-y-1">
+            <p>• 관리자 확인 후 승인되면 자동으로 일지가 열립니다.</p>
+            <p>• 빠른 승인을 원하시면 센터(010-7644-9323)로 문의해 주세요.</p>
+          </div>
+          <button type="button" onclick="checkGuardianApprovalStatus()" class="w-full py-3 bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm">
+            승인 상태 확인 및 새로고침
+          </button>
+          <button type="button" onclick="unlinkGuardian()" class="text-xs text-slate-400 underline block text-center w-full pt-1">다른 코드로 다시 신청</button>
+        </div>
+
+        <!-- [2-2단계] 관리자 거절 안내 화면 -->
+        <div id="guardian-rejected" class="hidden bg-white p-6 rounded-2xl border border-red-200 text-center space-y-4 shadow-sm my-auto">
+          <div class="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto text-2xl">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-red-700 text-base">연동 요청이 거절되었습니다</h3>
+            <p class="text-xs text-slate-600 mt-1.5 leading-relaxed font-medium">
+              신청하신 보호자 정보 및 어르신 코드 확인이 완료되지 않아 연동이 승인되지 않았습니다.
+            </p>
+          </div>
+          
+          <div class="p-3.5 bg-red-50/70 border border-red-100 rounded-xl text-left space-y-1.5">
+            <span class="text-[11px] font-bold text-red-800 flex items-center space-x-1">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <span>거절 안내 사유</span>
+            </span>
+            <p class="text-xs font-bold text-slate-800 leading-snug">
+              가로수재가센터로 연락 부탁드립니다.<br>
+              <span class="text-red-700 text-sm font-black">📞 010-7644-9323</span>
+            </p>
+          </div>
+
+          <div class="space-y-2 pt-1">
+            <a href="tel:010-7644-9323" class="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5">
+              <i class="fa-solid fa-phone"></i>
+              <span>가로수재가센터 바로 전화 걸기</span>
+            </a>
+            <button type="button" onclick="unlinkGuardian()" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl">
+              정보 수정 후 다시 연동 신청하기
+            </button>
+          </div>
+        </div>
+
+        <!-- [3단계] 승인 완료 후 알림장 화면 -->
+        <div id="guardian-linked" class="hidden space-y-4 pb-6">
+          <div class="bg-white p-5 rounded-2xl border space-y-3 shadow-sm">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-emerald-600 uppercase tracking-wide">오늘의 실시간 돌봄 일지</span>
+              <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md font-bold" id="disp-report-date">오늘</span>
+            </div>
+            <div>
+              <h2 class="text-xl font-black text-slate-900" id="disp-patient-title">어르신 돌봄 일지</h2>
+              <p class="text-xs text-slate-500 mt-0.5" id="disp-caregiver-title">담당: 이순희 요양보호사</p>
+            </div>
+
+            <!-- 사진 표시 영역 -->
+            <div id="disp-photo-container" class="hidden rounded-2xl overflow-hidden border max-h-56 bg-slate-100 flex items-center justify-center">
+              <img id="disp-photo-img" src="" class="w-full h-auto object-cover max-h-56">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-slate-50 p-3 rounded-xl border">
+                <span class="text-[11px] text-slate-500 font-bold">식사량</span>
+                <p class="font-bold text-slate-800 mt-1 text-sm" id="disp-meal-val">완식</p>
+              </div>
+              <div class="bg-slate-50 p-3 rounded-xl border">
+                <span class="text-[11px] text-slate-500 font-bold">복약 상태</span>
+                <p class="font-bold text-emerald-600 mt-1 text-sm" id="disp-med-val">복용 완료</p>
+              </div>
+            </div>
+
+            <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+              <span class="text-xs text-emerald-800 font-bold flex items-center space-x-1">
+                <i class="fa-solid fa-comment-dots"></i>
+                <span>요양보호사 특이사항 메모</span>
+              </span>
+              <p class="text-xs text-slate-700 mt-1.5 leading-relaxed" id="disp-memo-val">작성된 일지가 없습니다.</p>
+            </div>
+
+            <!-- 보호자 감사/확인 피드백 섹션 -->
+            <div id="guardian-feedback-section" class="pt-3 border-t space-y-2.5">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-slate-700 flex items-center space-x-1">
+                  <i class="fa-solid fa-heart text-red-500"></i>
+                  <span>보호자 확인 및 감사 인사 남기기</span>
+                </span>
+                <span id="feedback-status-badge" class="text-[10px] text-slate-400"></span>
+              </div>
+              <div class="grid grid-cols-3 gap-1.5">
+                <button type="button" onclick="sendGuardianQuickFeedback('❤️ 확인했어요')" class="py-2 px-1 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold rounded-xl active:scale-95 transition">
+                  ❤️ 확인했어요
+                </button>
+                <button type="button" onclick="sendGuardianQuickFeedback('🙏 늘 감사합니다')" class="py-2 px-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl active:scale-95 transition">
+                  🙏 늘 감사합니다
+                </button>
+                <button type="button" onclick="sendGuardianQuickFeedback('💪 오늘도 힘내세요!')" class="py-2 px-1 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-xs font-bold rounded-xl active:scale-95 transition">
+                  💪 힘내세요!
+                </button>
+              </div>
+              <div class="flex space-x-1.5 pt-1">
+                <input type="text" id="guardian-reply-input" placeholder="선생님께 전달할 감사 메모를 남겨주세요." class="flex-1 p-2 text-xs border rounded-xl focus:border-emerald-600 focus:outline-none">
+                <button type="button" onclick="sendGuardianCustomFeedback()" class="px-3 py-2 bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm active:scale-95 transition whitespace-nowrap">
+                  답글 남기기
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="space-y-2.5 pt-2">
+            <div class="flex items-center justify-between px-1">
+              <h3 class="text-xs font-bold text-slate-600 flex items-center space-x-1">
+                <i class="fa-solid fa-calendar-days text-emerald-600"></i>
+                <span>지난 돌봄 일지 전체 히스토리</span>
+              </h3>
+              <span class="text-[11px] text-slate-400" id="guardian-history-count">이전 기록 0건</span>
+            </div>
+            <div id="guardian-history-list" class="space-y-2.5"></div>
+          </div>
+
+          <button type="button" onclick="unlinkGuardian()" class="text-xs text-slate-400 underline block text-center w-full pt-3">연동 해제 및 다른 어르신 조회</button>
+        </div>
+      </main>
+
+      <footer class="bg-white border-t p-3 text-center text-xs text-slate-400 space-y-1">
+        <p>가로수케어노트 • 관리자 승인 & 피드백 시스템</p>
+        <button type="button" onclick="openPrivacyModal()" class="text-[11px] text-slate-500 underline">개인정보 처리방침</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- 개인정보 처리방침 모달 팝업 -->
+  <div id="privacy-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 max-h-[80vh] flex flex-col justify-between space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b pb-3">
+        <h3 class="text-sm font-black text-slate-800 flex items-center space-x-1.5">
+          <i class="fa-solid fa-shield-halved text-emerald-600"></i>
+          <span>가로수케어노트 개인정보 처리방침</span>
+        </h3>
+        <button type="button" onclick="closePrivacyModal()" class="text-slate-400 hover:text-slate-600 p-1">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-600 space-y-3 overflow-y-auto pr-1 text-left leading-relaxed">
+        <div>
+          <strong class="text-slate-800 block mb-0.5">1. 수집하는 개인정보 항목</strong>
+          <p>• 보호자: 성함, 휴대전화번호, 어르신과의 관계, 기기 식별정보<br>• 수급자(어르신): 성함, 연령, 돌봄 일지(식사/복약/특이사항), 활동 사진</p>
+        </div>
+
+        <div>
+          <strong class="text-slate-800 block mb-0.5">2. 수집 및 이용 목적</strong>
+          <p>• 장기요양 재가급여 돌봄 일지 작성 및 보호자 공유<br>• 긴급 상황 발생 시 센터-보호자 간 비상 연락 및 알림 전송</p>
+        </div>
+
+        <div>
+          <strong class="text-slate-800 block mb-0.5">3. 보유 및 이용 기간</strong>
+          <p>• 수급자의 재가급여 계약 종료 시 또는 보호자의 연동 해제 요청 시까지 안전하게 보관 후 지체 없이 파기합니다.</p>
+        </div>
+
+        <div>
+          <strong class="text-slate-800 block mb-0.5">4. 동의 거부 권리</strong>
+          <p>• 보호자는 개인정보 수집 동의를 거부할 권리가 있으며, 동의 거부 시 스마트 알림장 열람이 제한될 수 있습니다.</p>
+        </div>
+
+        <div class="p-2.5 bg-slate-50 rounded-xl border text-[11px] text-slate-500">
+          <p><b>관리 책임 기관:</b> 가로수재가복지센터</p>
+          <p><b>문의 전화:</b> 010-7644-9323</p>
+        </div>
+      </div>
+
+      <button type="button" onclick="closePrivacyModal()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl active:scale-95 transition">
+        확인 및 닫기
+      </button>
+    </div>
+  </div>
+
+  <script>
+    var CORRECT_PIN = "0217";
+
+    var SUPABASE_URL = "https://jzzhronhmvrpzkteypem.supabase.co";
+    var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp6emhyb25obXZycHprdGV5cGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NTYxMDAsImV4cCI6MjEwMjUzMjEwMH0.x5Ru9AGRKYWglN-0PS2tlanlxR2hJUz6AuU-cMTTA1Y";
+
+    var db = null;
+    try {
+      if (window.supabase && typeof window.supabase.createClient === 'function') {
+        db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn("DB Init Error:", e);
+    }
+
+    var defaultCaregivers = [
+      { login_id: 'care01', password: '0217', name: '이순희 요양보호사' },
+      { login_id: 'care02', password: '0217', name: '김미숙 요양보호사' }
+    ];
+    var caregiversList = defaultCaregivers;
+
+    var fallbackPatients = [
+      { id: 1, code: '739204', name: '김영자', age: '84세', visit_time: '오전 09:00', caregiver: '이순희 요양보호사' },
+      { id: 2, code: '842109', name: '박철수', age: '81세', visit_time: '오후 14:00', caregiver: '이순희 요양보호사' },
+      { id: 3, code: '951357', name: '정순옥', age: '79세', visit_time: '오전 11:00', caregiver: '김미숙 요양보호사' }
+    ];
+
+    var patients = [];
+    var currentRole = 'caregiver';
+    var loggedInStaffName = '이순희 요양보호사';
+    var selectedPatient = null;
+    var selectedMeal = '보통';
+    var selectedMed = '복용 완료';
+    var uploadedPhotoData = '';
+    var recognition = null;
+    var isRecording = false;
+    var currentLatestReportId = null;
+    var currentApprovedGuardian = null;
+    var deferredPrompt = null;
+
+    // ================= [개인정보 처리방침 모달 로직] =================
+    function openPrivacyModal() {
+      document.getElementById('privacy-modal').classList.remove('hidden');
+    }
+
+    function closePrivacyModal() {
+      document.getElementById('privacy-modal').classList.add('hidden');
+    }
+
+    // ================= [PWA 홈 화면 추가 로직] =================
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      showPwaBannerIfNotDismissed();
+    });
+
+    function showPwaBannerIfNotDismissed() {
+      var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+      if (isStandalone) return;
+
+      var dismissedDate = localStorage.getItem('pwa_banner_dismissed');
+      var today = new Date().toISOString().split('T')[0];
+
+      if (dismissedDate !== today) {
+        var banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('hidden');
+      }
+    }
+
+    function triggerPwaInstall() {
+      var isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function(choiceResult) {
+          if (choiceResult.outcome === 'accepted') {
+            dismissPwaBanner();
+          }
+          deferredPrompt = null;
+        });
+      } else if (isiOS) {
+        alert("📱 [아이폰 홈 화면 추가 방법]\n\n1. 하단 가운데 [공유 버튼(네모+화살표)]을 누릅니다.\n2. 메뉴를 올려 [홈 화면에 추가]를 누르시면 앱처럼 설치됩니다!");
+      } else {
+        alert("📱 [홈 화면 추가 안내]\n브라우저 오른쪽 상단 [메뉴(점 3개)] ➔ [홈 화면에 추가] 또는 [앱 설치]를 선택해 주세요.");
+      }
+    }
+
+    function dismissPwaBanner() {
+      var banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.classList.add('hidden');
+      var today = new Date().toISOString().split('T')[0];
+      localStorage.setItem('pwa_banner_dismissed', today);
+    }
+
+    window.addEventListener('load', function() {
+      setTimeout(showPwaBannerIfNotDismissed, 1500);
+    });
+
+    // ================= [⭐ 개선된 국민건강보험공단 스마트장기요양 앱 직접 실행] =================
+    function openLongTermCareApp() {
+      var isAndroid = /Android/i.test(navigator.userAgent);
+      var isiOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+      if (isAndroid) {
+        // 앱 설치 시 즉시 0.1초 실행 / 미설치 시 플레이스토어 설치 화면으로 자동 폴백
+        window.location.href = "intent://#Intent;scheme=smartcare;package=kr.or.nhis.longtermcare.android;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dkr.or.nhis.longtermcare.android;end";
+      } else if (isiOS) {
+        // iOS 전용 앱 직접 호출 스킴 (미설치 시 앱스토어 이동)
+        var clickedAt = +new Date();
+        window.location.href = "smartcare://";
+        setTimeout(function() {
+          if (+new Date() - clickedAt < 2000) {
+            window.location.href = "https://apps.apple.com/kr/app/%EC%8A%A4%EB%A7%88%ED%8A%B8%EC%9E%A5%EA%B8%B0%EC%9A%94%EC%96%91/id6745545595";
+          }
+        }, 1500);
+      } else {
+        window.open("https://play.google.com/store/apps/details?id=kr.or.nhis.longtermcare.android", "_blank");
+      }
+    }
+
+    function getDeviceToken() {
+      var token = localStorage.getItem('garosu_device_token');
+      if (!token) {
+        token = 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('garosu_device_token', token);
+      }
+      return token;
+    }
+
+    async function loadCaregiversList() {
+      if (db) {
+        try {
+          var { data, error } = await db.from('caregivers').select('*').order('id', { ascending: true });
+          if (!error && data && data.length > 0) caregiversList = data;
+        } catch (e) {}
+      }
+    }
+    loadCaregiversList();
+
+    function checkSitePassword() {
+      var input = document.getElementById('site-password-input');
+      var val = input ? input.value.replace(/\s+/g, '') : '';
+      if (val === CORRECT_PIN) {
+        document.getElementById('view-site-lock').style.display = 'none';
+        document.getElementById('view-login').style.display = 'flex';
+        document.getElementById('view-login').classList.remove('hidden');
+        selectRole('caregiver');
+      } else {
+        alert("비밀번호가 올바르지 않습니다.");
+        if (input) { input.value = ''; input.focus(); }
+      }
+    }
+
+    function selectRole(role) {
+      currentRole = role;
+      var roles = ['admin', 'caregiver', 'guardian'];
+      for (var i = 0; i < roles.length; i++) {
+        var r = roles[i];
+        var el = document.getElementById('role-' + r);
+        if (el) {
+          el.className = (r === role) 
+            ? "py-2.5 rounded-xl bg-emerald-600 text-white shadow-sm transition" 
+            : "py-2.5 rounded-xl text-slate-600 transition";
+        }
+      }
+
+      var formStaff = document.getElementById('login-form-staff');
+      var formGuardian = document.getElementById('login-form-guardian');
+      var idInput = document.getElementById('login-id-input');
+      var pwInput = document.getElementById('login-pw-input');
+      var btnText = document.getElementById('custom-login-btn-text');
+
+      if (role === 'guardian') {
+        formStaff.classList.add('hidden');
+        formGuardian.classList.remove('hidden');
+        btnText.innerText = "보호자 화면으로 시작";
+      } else {
+        formStaff.classList.remove('hidden');
+        formGuardian.classList.add('hidden');
+        if (role === 'admin') {
+          idInput.value = "admin"; pwInput.value = "0217";
+          btnText.innerText = "관리자 로그인";
+        } else {
+          idInput.value = "care01"; pwInput.value = "0217";
+          btnText.innerText = "요양보호사 로그인";
+        }
+      }
+    }
+
+    async function handleCustomLogin() {
+      if (currentRole === 'guardian') {
+        openMainApp();
+        return;
+      }
+
+      var id = document.getElementById('login-id-input').value.trim();
+      var pw = document.getElementById('login-pw-input').value.trim();
+
+      if (!id || !pw) return alert("아이디와 비밀번호를 모두 입력해 주세요.");
+
+      if (currentRole === 'admin') {
+        if (id === 'admin' && pw === '0217') {
+          loggedInStaffName = '센터 총괄관리자';
+          openMainApp();
+          return;
+        } else {
+          return alert("❌ 관리자 아이디 또는 비밀번호가 올바르지 않습니다.");
+        }
+      }
+
+      await loadCaregiversList();
+      var matchedCg = caregiversList.find(c => c.login_id === id && c.password === pw);
+      if (!matchedCg) return alert("❌ 아이디 또는 비밀번호가 일치하지 않습니다.");
+
+      loggedInStaffName = matchedCg.name;
+      openMainApp();
+    }
+
+    async function openMainApp() {
+      document.getElementById('view-login').style.display = 'none';
+      document.getElementById('view-login').classList.add('hidden');
+
+      document.getElementById('view-main-app').style.display = 'flex';
+      document.getElementById('view-main-app').classList.remove('hidden');
+
+      hideAllMainViews();
+
+      if (currentRole === 'admin') {
+        document.getElementById('header-user-badge').innerText = "🏢 " + loggedInStaffName;
+        document.getElementById('view-admin').style.display = 'block';
+        document.getElementById('view-admin').classList.remove('hidden');
+        await loadAdminDataFromSupabase();
+      } else if (currentRole === 'caregiver') {
+        document.getElementById('header-user-badge').innerText = "✍️ " + loggedInStaffName;
+        document.getElementById('view-caregiver').style.display = 'block';
+        document.getElementById('view-caregiver').classList.remove('hidden');
+        await loadCaregiverDataFromSupabase();
+      } else {
+        document.getElementById('header-user-badge').innerText = "👀 가족/보호자";
+        document.getElementById('view-guardian').style.display = 'block';
+        document.getElementById('view-guardian').classList.remove('hidden');
+        await checkGuardianApprovalStatus();
+      }
+    }
+
+    function hideAllMainViews() {
+      ['view-admin', 'view-caregiver', 'view-guardian'].forEach(v => {
+        var el = document.getElementById(v);
+        if (el) { el.style.display = 'none'; el.classList.add('hidden'); }
+      });
+    }
+
+    function logout() {
+      hideAllMainViews();
+      document.getElementById('view-main-app').style.display = 'none';
+      document.getElementById('view-main-app').classList.add('hidden');
+
+      document.getElementById('view-login').style.display = 'flex';
+      document.getElementById('view-login').classList.remove('hidden');
+    }
+
+    // ================= [관리자 기능] =================
+    async function loadAdminDataFromSupabase() {
+      await loadCaregiversList();
+      renderCaregiverDropdown();
+
+      var todayReports = [];
+      if (db) {
+        try {
+          var { data: pData } = await db.from('patients').select('*').order('id', { ascending: true });
+          if (pData && pData.length > 0) patients = pData;
+          else patients = fallbackPatients;
+
+          var startOfDay = new Date();
+          startOfDay.setHours(0, 0, 0, 0);
+          var { data: rData } = await db.from('care_reports').select('*').gte('created_at', startOfDay.toISOString());
+          if (rData) todayReports = rData;
+        } catch (e) { patients = fallbackPatients; }
+      } else { patients = fallbackPatients; }
+      
+      renderAdminDashboard(todayReports);
+      renderAdminList(todayReports);
+      await loadAdminApprovals();
+    }
+
+    function renderAdminDashboard(todayReports) {
+      var totalCount = patients.length;
+      var completedPatientCodes = new Set(todayReports.map(r => String(r.patient_code).trim()));
+      var completedCount = 0;
+
+      patients.forEach(p => {
+        if (completedPatientCodes.has(String(p.code).trim())) completedCount++;
+      });
+
+      var pendingCount = totalCount - completedCount;
+      var percentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+      document.getElementById('today-report-ratio').innerText = `${completedCount} / ${totalCount}명 (${percentage}%)`;
+      document.getElementById('today-progress-bar').style.width = `${percentage}%`;
+      document.getElementById('stat-completed-count').innerText = `작성 완료: ${completedCount}명`;
+      document.getElementById('stat-pending-count').innerText = `미작성: ${pendingCount}명`;
+    }
+
+    function renderAdminList(todayReports) {
+      var container = document.getElementById('admin-patient-list');
+      container.innerHTML = "";
+
+      var completedCodes = new Set((todayReports || []).map(r => String(r.patient_code).trim()));
+
+      for (var i = 0; i < patients.length; i++) {
+        (function(p) {
+          var isCompleted = completedCodes.has(String(p.code).trim());
+          var div = document.createElement('div');
+          div.className = "bg-white p-3.5 rounded-2xl border text-xs space-y-2 shadow-sm";
+          var optionsHtml = caregiversList.map(cg => 
+            `<option value="${cg.name}" ${p.caregiver === cg.name ? 'selected' : ''}>${cg.name} (${cg.login_id})</option>`
+          ).join('');
+
+          div.innerHTML = `
+            <div class="flex justify-between items-start">
+              <div>
+                <strong class="text-sm text-slate-800">${p.name} (${p.age || '연령 미입력'})</strong>
+                <p class="text-slate-400 mt-0.5">${p.visit_time || '방문시간 미입력'} • 초대코드: <b class="text-emerald-700 font-black">${p.code}</b></p>
+              </div>
+              <span class="text-[10px] px-2 py-0.5 rounded-md font-bold ${isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                ${isCompleted ? '오늘 작성완료 ✅' : '오늘 미작성 ⏳'}
+              </span>
+            </div>
+            <div class="flex items-center space-x-2 pt-1 border-t">
+              <span class="text-slate-500 font-bold whitespace-nowrap">담당:</span>
+              <select onchange="reassignCaregiverInSupabase('${p.code}', this.value)" class="w-full p-2 bg-slate-50 border rounded-lg text-xs font-bold text-emerald-900 focus:outline-none">
+                ${optionsHtml}
+              </select>
+            </div>
+          `;
+          container.appendChild(div);
+        })(patients[i]);
+      }
+    }
+
+    async function loadAdminApprovals() {
+      var container = document.getElementById('admin-approval-list');
+      var badge = document.getElementById('admin-pending-badge');
+      if (!container) return;
+
+      container.innerHTML = `<div class="p-2 text-slate-400 text-center text-xs">승인 요청 불러오는 중...</div>`;
+
+      var list = [];
+      if (db) {
+        try {
+          var { data } = await db.from('guardian_approvals').select('*').order('id', { ascending: false });
+          if (data) list = data;
+        } catch (e) {}
+      }
+
+      var pendingCount = list.filter(a => a.status === 'PENDING').length;
+      badge.innerText = `대기 ${pendingCount}건`;
+      badge.className = pendingCount > 0 
+        ? "text-[10px] bg-red-500 text-white font-extrabold px-2 py-0.5 rounded-full animate-bounce" 
+        : "text-[10px] bg-slate-100 text-slate-500 font-extrabold px-2 py-0.5 rounded-full";
+
+      container.innerHTML = "";
+      if (list.length === 0) {
+        container.innerHTML = `<div class="p-3 bg-slate-50 text-slate-400 text-center rounded-xl text-xs">접수된 보호자 연동 요청이 없습니다.</div>`;
+        return;
+      }
+
+      list.forEach(req => {
+        var isPending = req.status === 'PENDING';
+        var isApproved = req.status === 'APPROVED';
+        var isRejected = req.status === 'REJECTED';
+
+        var statusBadge = '';
+        if (isPending) statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-amber-200 text-amber-900">승인 대기</span>`;
+        else if (isApproved) statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-800">승인 완료 ✅</span>`;
+        else statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-red-100 text-red-800">거절됨 ❌</span>`;
+
+        var div = document.createElement('div');
+        div.className = `p-3 rounded-xl border text-xs space-y-1.5 ${isPending ? 'bg-amber-50/70 border-amber-200' : 'bg-slate-50 border-slate-200'}`;
+        div.innerHTML = `
+          <div class="flex justify-between items-center">
+            <strong class="text-slate-800 text-xs">${req.patient_name} 어르신 (코드: ${req.patient_code})</strong>
+            ${statusBadge}
+          </div>
+          <p class="text-slate-600 text-[11px]">신청 보호자: <b>${req.guardian_name}</b> (${req.guardian_phone})</p>
+          <div class="pt-1 flex space-x-2">
+            ${!isApproved ? `<button type="button" onclick="adminApproveGuardian(${req.id})" class="flex-1 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs shadow-sm">승인하기</button>` : ''}
+            ${!isRejected ? `<button type="button" onclick="adminRejectGuardian(${req.id})" class="px-3 py-1.5 bg-red-100 text-red-700 hover:bg-red-200 font-bold rounded-lg text-xs">거절 처리</button>` : ''}
+            <button type="button" onclick="adminDeleteGuardianApproval(${req.id})" class="px-2 py-1.5 bg-slate-200 text-slate-500 font-bold rounded-lg text-[10px]">삭제</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function adminApproveGuardian(id) {
+      if (db) {
+        await db.from('guardian_approvals').update({ status: 'APPROVED' }).eq('id', id);
+        alert("✅ 보호자 연동이 승인되었습니다!");
+        await loadAdminApprovals();
+      }
+    }
+
+    async function adminRejectGuardian(id) {
+      if (confirm("이 보호자의 연동 요청을 거절 처리하시겠습니까?\n(보호자 화면에 가로수재가센터 문의 안내가 표시됩니다)")) {
+        if (db) {
+          await db.from('guardian_approvals').update({ status: 'REJECTED' }).eq('id', id);
+          alert("❌ 연동 요청이 거절 처리되었습니다.");
+          await loadAdminApprovals();
+        }
+      }
+    }
+
+    async function adminDeleteGuardianApproval(id) {
+      if (confirm("해당 승인/거절 내역을 삭제하시겠습니까?")) {
+        if (db) {
+          await db.from('guardian_approvals').delete().eq('id', id);
+          await loadAdminApprovals();
+        }
+      }
+    }
+
+    async function adminAddCaregiverAccount() {
+      var name = document.getElementById('admin-cg-name').value.trim();
+      var id = document.getElementById('admin-cg-id').value.trim();
+      var pw = document.getElementById('admin-cg-pw').value.trim();
+
+      if (!name || !id || !pw) return alert("보호사 성함, 아이디, 비밀번호를 모두 입력해 주세요.");
+      if (caregiversList.some(c => c.login_id === id)) return alert("❌ 이미 존재하는 아이디입니다.");
+
+      var newCg = { login_id: id, password: pw, name: name };
+      if (db) await db.from('caregivers').insert([newCg]);
+
+      caregiversList.push(newCg);
+      alert(`✅ [${name}] 계정이 발급되었습니다!\n• 아이디: ${id} / 비번: ${pw}`);
+
+      document.getElementById('admin-cg-name').value = "";
+      document.getElementById('admin-cg-id').value = "";
+      renderCaregiverDropdown();
+      await loadAdminDataFromSupabase();
+    }
+
+    function renderCaregiverDropdown() {
+      var select = document.getElementById('admin-caregiver-assign');
+      if (!select) return;
+      select.innerHTML = "";
+      caregiversList.forEach(cg => {
+        var opt = document.createElement('option');
+        opt.value = cg.name;
+        opt.innerText = `${cg.name} (${cg.login_id})`;
+        select.appendChild(opt);
+      });
+    }
+
+    async function reassignCaregiverInSupabase(patientCode, newCaregiver) {
+      if (db) {
+        await db.from('patients').update({ caregiver: newCaregiver }).eq('code', String(patientCode).trim());
+      }
+      var p = patients.find(x => String(x.code).trim() === String(patientCode).trim());
+      if (p) p.caregiver = newCaregiver;
+      alert(`✅ 담당 보호사가 [${newCaregiver}] 님으로 변경되었습니다!`);
+      await loadAdminDataFromSupabase();
+    }
+
+    async function adminAddPatient() {
+      var name = document.getElementById('admin-name').value.trim();
+      var age = document.getElementById('admin-age').value.trim() || "80세";
+      var time = document.getElementById('admin-time').value.trim() || "오전 09:00";
+      var caregiver = document.getElementById('admin-caregiver-assign').value;
+      var btn = document.getElementById('btn-admin-add');
+
+      if (!name) return alert("어르신 성함을 입력해 주세요.");
+
+      btn.disabled = true;
+      btn.innerText = "클라우드 등록 중...";
+
+      var randomCode = Math.floor(100000 + Math.random() * 900000).toString();
+      var newPatientObj = { code: randomCode, name: name, age: age, visit_time: time, caregiver: caregiver };
+
+      if (db) {
+        var { data, error } = await db.from('patients').insert([newPatientObj]).select();
+        if (data && data.length > 0) patients.push(data[0]);
+        else patients.push(newPatientObj);
+      } else {
+        patients.push(newPatientObj);
+      }
+
+      btn.disabled = false;
+      btn.innerText = "신규 수급자 등록 및 배정 완료";
+      alert(`✅ [${name} 어르신] 등록 완료!\n초대 코드: ${randomCode}`);
+      
+      document.getElementById('admin-name').value = "";
+      document.getElementById('admin-age').value = "";
+      document.getElementById('admin-time').value = "";
+      await loadAdminDataFromSupabase();
+    }
+
+    // ================= [요양보호사 기능: 보호자 직통 전화 연동] =================
+    async function loadCaregiverDataFromSupabase() {
+      if (db) {
+        var { data } = await db.from('patients').select('*').order('id', { ascending: true });
+        if (data && data.length > 0) patients = data;
+      } else { patients = fallbackPatients; }
+
+      var myPatients = patients.filter(p => p.caregiver === loggedInStaffName);
+      var tabs = document.getElementById('caregiver-patient-tabs');
+      tabs.innerHTML = "";
+
+      if (myPatients.length === 0) {
+        tabs.innerHTML = `<span class="text-xs text-slate-400 p-2">배정된 어르신이 없습니다.</span>`;
+        document.getElementById('caregiver-target-name').innerText = "배정된 어르신 없음";
+        document.getElementById('caregiver-target-time').innerText = "-";
+        document.getElementById('caregiver-target-code').innerText = "관리자에게 어르신 배정을 요청하세요.";
+        document.getElementById('caregiver-history-list').innerHTML = `<div class="p-3 bg-slate-50 text-slate-400 text-center rounded-xl text-xs">작성할 어르신이 없습니다.</div>`;
+        selectedPatient = null;
+        return;
+      }
+
+      myPatients.forEach((p, idx) => {
+        var btn = document.createElement('button');
+        btn.id = `cg-tab-${p.id || p.code}`;
+        btn.className = `px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition ${idx === 0 ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600'}`;
+        btn.innerText = `${p.name} (${(p.visit_time || '오전').split(' ')[0]})`;
+        btn.onclick = () => selectCaregiverPatient(p.code);
+        tabs.appendChild(btn);
+      });
+
+      selectCaregiverPatient(myPatients[0].code);
+    }
+
+    async function selectCaregiverPatient(code) {
+      selectedPatient = patients.find(p => String(p.code).trim() === String(code).trim());
+      if (!selectedPatient) return;
+
+      var myPatients = patients.filter(p => p.caregiver === loggedInStaffName);
+      myPatients.forEach(p => {
+        var t = document.getElementById(`cg-tab-${p.id || p.code}`);
+        if (t) {
+          t.className = String(p.code).trim() === String(code).trim() 
+            ? 'px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-emerald-600 text-white shadow-sm' 
+            : 'px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap bg-slate-100 text-slate-600';
+        }
+      });
+
+      document.getElementById('caregiver-target-name').innerText = `${selectedPatient.name} 어르신 (${selectedPatient.age || '연령 미상'})`;
+      document.getElementById('caregiver-target-time').innerText = selectedPatient.visit_time || '오전 방문';
+      document.getElementById('caregiver-target-code').innerText = `보호자 연동 6자리 코드: ${selectedPatient.code}`;
+      document.getElementById('report-memo-input').value = "";
+      document.getElementById('share-notification-banner').classList.add('hidden');
+      removePhoto();
+
+      await fetchApprovedGuardianForPatient(selectedPatient.code);
+      await loadCaregiverHistoryFromSupabase(selectedPatient);
+    }
+
+    async function fetchApprovedGuardianForPatient(patientCode) {
+      currentApprovedGuardian = null;
+      var smsBtnLabel = document.getElementById('sms-btn-label');
+      var callBtnText = document.getElementById('cg-call-guardian-text');
+      var callBtn = document.getElementById('cg-call-guardian-btn');
+
+      if (db) {
+        try {
+          var { data } = await db.from('guardian_approvals')
+            .select('*')
+            .eq('patient_code', String(patientCode).trim())
+            .eq('status', 'APPROVED')
+            .maybeSingle();
+          if (data) {
+            currentApprovedGuardian = data;
+            if (smsBtnLabel) smsBtnLabel.innerText = `💬 승인 보호자(${data.guardian_name})에게 문자 바로 보내기`;
+            if (callBtnText) callBtnText.innerText = `📞 보호자(${data.guardian_name}) 바로 전화 걸기`;
+            if (callBtn) {
+              callBtn.className = "w-full py-2.5 px-3 bg-white hover:bg-emerald-600 text-emerald-800 hover:text-white border border-emerald-300 font-black text-xs rounded-xl shadow-sm flex items-center justify-center space-x-2 active:scale-95 transition cursor-pointer";
+            }
+          } else {
+            if (smsBtnLabel) smsBtnLabel.innerText = `💬 보호자에게 문자 바로 보내기`;
+            if (callBtnText) callBtnText.innerText = `연결된 승인 보호자 없음`;
+            if (callBtn) {
+              callBtn.className = "w-full py-2.5 px-3 bg-slate-50 text-slate-400 border border-slate-200 font-bold text-xs rounded-xl flex items-center justify-center space-x-2 cursor-not-allowed";
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    function callApprovedGuardian() {
+      if (!currentApprovedGuardian || !currentApprovedGuardian.guardian_phone) {
+        return alert("현재 승인 완료된 보호자 연락처가 없습니다.\n(관리자에게 보호자 승인을 요청해 주세요)");
+      }
+      var cleanPhone = currentApprovedGuardian.guardian_phone.replace(/[^0-9]/g, '');
+      window.location.href = `tel:${cleanPhone}`;
+    }
+
+    function insertQuickPhrase(phrase) {
+      var memoInput = document.getElementById('report-memo-input');
+      if (!memoInput) return;
+      if (memoInput.value.trim() === '') {
+        memoInput.value = phrase;
+      } else {
+        memoInput.value += " " + phrase;
+      }
+      memoInput.focus();
+    }
+
+    async function loadCaregiverHistoryFromSupabase(patient) {
+      var container = document.getElementById('caregiver-history-list');
+      var countEl = document.getElementById('caregiver-history-count');
+      container.innerHTML = `<div class="p-3 text-slate-400 text-center text-xs">기록 불러오는 중...</div>`;
+
+      var history = [];
+      if (db && patient) {
+        var { data } = await db.from('care_reports').select('*').eq('patient_code', String(patient.code).trim()).order('created_at', { ascending: false });
+        if (data) history = data;
+      }
+
+      countEl.innerText = `총 ${history.length}건`;
+      container.innerHTML = "";
+
+      if (history.length === 0) {
+        container.innerHTML = `<div class="p-3 bg-slate-50 text-slate-400 text-center rounded-xl text-xs">작성된 지난 기록이 없습니다.</div>`;
+        return;
+      }
+
+      history.forEach(item => {
+        var dateStr = item.created_at ? new Date(item.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '오늘';
+        var hasFeedback = item.feedback || item.feedback_memo;
+        var div = document.createElement('div');
+        div.className = "bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-2";
+        div.innerHTML = `
+          <div class="flex justify-between items-center">
+            <strong class="text-emerald-800 font-bold">${dateStr}</strong>
+            <span class="text-[11px] text-slate-500 font-medium">식사: ${item.meal} | 복약: ${item.med}</span>
+          </div>
+          <p class="text-slate-700 leading-relaxed">${item.memo || '특이사항 없음'}</p>
+          ${item.photo ? `<div class="pt-1"><img src="${item.photo}" class="w-24 h-24 object-cover rounded-xl border shadow-sm"></div>` : ''}
+          ${hasFeedback ? `
+            <div class="mt-2 p-2.5 bg-red-50/70 border border-red-200 rounded-xl space-y-1">
+              <span class="text-[11px] font-bold text-red-700 flex items-center space-x-1">
+                <i class="fa-solid fa-heart text-red-500"></i>
+                <span>보호자 감사 답글 (${item.feedback_author || '가족'})</span>
+              </span>
+              ${item.feedback ? `<span class="inline-block bg-white text-red-600 font-bold text-[11px] px-2 py-0.5 rounded-md border border-red-100">${item.feedback}</span>` : ''}
+              ${item.feedback_memo ? `<p class="text-xs text-slate-700 mt-1 font-medium">"${item.feedback_memo}"</p>` : ''}
+            </div>
+          ` : ''}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function setMeal(val, elem) {
+      selectedMeal = val;
+      document.querySelectorAll('.meal-btn').forEach(btn => { btn.className = "meal-btn touch-target p-2.5 border-2 rounded-xl text-xs font-bold bg-white text-slate-700"; });
+      elem.className = "meal-btn touch-target p-2.5 border-2 border-emerald-600 bg-emerald-50 text-emerald-900 rounded-xl text-xs font-bold";
+    }
+
+    function setMed(val, elem) {
+      selectedMed = val;
+      document.querySelectorAll('.med-btn').forEach(btn => { btn.className = "med-btn touch-target p-2.5 border-2 rounded-xl text-xs font-bold bg-white text-slate-700"; });
+      elem.className = "med-btn touch-target p-2.5 border-2 border-emerald-600 bg-emerald-50 text-emerald-900 rounded-xl text-xs font-bold";
+    }
+
+    function handlePhotoUploadAndCompress(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var rawBase64 = e.target.result;
+        try {
+          var img = new Image();
+          img.onload = function() {
+            try {
+              var canvas = document.createElement('canvas');
+              var MAX_SIZE = 800;
+              var width = img.width; var height = img.height;
+              if (width > height) { if (width > MAX_SIZE) { height = Math.round(height * (MAX_SIZE / width)); width = MAX_SIZE; } }
+              else { if (height > MAX_SIZE) { width = Math.round(width * (MAX_SIZE / height)); height = MAX_SIZE; } }
+              canvas.width = width; canvas.height = height;
+              var ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              uploadedPhotoData = canvas.toDataURL('image/jpeg', 0.65);
+              showPhotoPreview(uploadedPhotoData);
+            } catch (err) { uploadedPhotoData = rawBase64; showPhotoPreview(uploadedPhotoData); }
+          };
+          img.src = rawBase64;
+        } catch (err) { uploadedPhotoData = rawBase64; showPhotoPreview(uploadedPhotoData); }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function showPhotoPreview(src) {
+      uploadedPhotoData = src;
+      var img = document.getElementById('photo-preview-img');
+      img.src = src;
+      document.getElementById('photo-preview-box').classList.remove('hidden');
+      document.getElementById('photo-remove-btn').classList.remove('hidden');
+      document.getElementById('photo-status').innerText = `사진 첨부 완료 ✅`;
+    }
+
+    function removePhoto() {
+      uploadedPhotoData = '';
+      document.getElementById('photo-preview-box').classList.add('hidden');
+      document.getElementById('photo-remove-btn').classList.add('hidden');
+      document.getElementById('photo-input').value = "";
+      document.getElementById('photo-status').innerText = "선택 안 됨";
+    }
+
+    function toggleSpeechRecognition() {
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return alert("현재 브라우저에서는 음성 인식을 지원하지 않습니다.");
+
+      var micBtn = document.getElementById('mic-btn');
+      var micLabel = document.getElementById('mic-label');
+
+      if (isRecording) { recognition.stop(); return; }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'ko-KR';
+      recognition.onstart = function() {
+        isRecording = true;
+        micBtn.className = "px-2.5 py-1 bg-red-600 text-white rounded-lg text-xs font-bold flex items-center space-x-1 recording-pulse";
+        micLabel.innerText = "듣고 있어요...";
+      };
+      recognition.onresult = function(event) {
+        var transcript = event.results[0][0].transcript;
+        var memoInput = document.getElementById('report-memo-input');
+        memoInput.value = memoInput.value.trim() === '' ? transcript : memoInput.value + " " + transcript;
+      };
+      recognition.onend = function() {
+        isRecording = false;
+        micBtn.className = "px-2.5 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold flex items-center space-x-1";
+        micLabel.innerText = "음성으로 말하기";
+      };
+      recognition.start();
+    }
+
+    async function saveCaregiverReport() {
+      if (!selectedPatient) return alert("어르신을 선택해 주세요.");
+      var memo = document.getElementById('report-memo-input').value.trim() || "특이사항 없이 평온하셨습니다.";
+      var btn = document.getElementById('btn-save-report');
+
+      btn.disabled = true; btn.innerText = "저장 중...";
+
+      var newReport = {
+        patient_id: selectedPatient.id || null,
+        patient_code: String(selectedPatient.code).trim(),
+        meal: selectedMeal,
+        med: selectedMed,
+        memo: memo,
+        photo: uploadedPhotoData,
+        author: loggedInStaffName,
+        created_at: new Date().toISOString()
+      };
+
+      if (db) {
+        var { error } = await db.from('care_reports').insert([newReport]);
+        if (error) {
+          btn.disabled = false; btn.innerText = "알림장 및 사진 저장하기";
+          return alert("❌ 저장 실패: " + error.message);
+        }
+      }
+
+      btn.disabled = false; btn.innerText = "알림장 및 사진 저장하기";
+      
+      await fetchApprovedGuardianForPatient(selectedPatient.code);
+      document.getElementById('share-notification-banner').classList.remove('hidden');
+
+      alert(`✅ [${selectedPatient.name} 어르신] 알림장이 안전하게 저장되었습니다!\n아래 [문자] 또는 [카톡] 버튼을 눌러 보호자님께 바로 전달하세요.`);
+      
+      document.getElementById('report-memo-input').value = "";
+      removePhoto();
+      await loadCaregiverHistoryFromSupabase(selectedPatient);
+    }
+
+    function sendDirectSmsToApprovedGuardian() {
+      if (!selectedPatient) return;
+      var appUrl = window.location.origin + window.location.pathname;
+      var shareText = `[가로수케어노트]\n${selectedPatient.name} 어르신의 오늘 돌봄 알림장과 사진이 도착했습니다.\n\n▶ 알림장 열기: ${appUrl}\n(연동 코드: ${selectedPatient.code})`;
+
+      var phoneNumber = currentApprovedGuardian ? currentApprovedGuardian.guardian_phone.replace(/[^0-9]/g, '') : '';
+      var isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      var separator = isiOS ? '&' : '?';
+      var smsUrl = phoneNumber 
+        ? `sms:${phoneNumber}${separator}body=${encodeURIComponent(shareText)}` 
+        : `sms:${separator}body=${encodeURIComponent(shareText)}`;
+
+      window.location.href = smsUrl;
+    }
+
+    function shareReportToKakao() {
+      if (!selectedPatient) return;
+      var appUrl = window.location.origin + window.location.pathname;
+      var shareText = `[가로수케어노트]\n${selectedPatient.name} 어르신의 오늘 돌봄 알림장과 사진이 도착했습니다. 아래 링크에서 확인해 주세요.\n\n▶ 알림장 열기: ${appUrl}\n(연동 코드: ${selectedPatient.code})`;
+
+      if (navigator.share) {
+        navigator.share({
+          title: '가로수케어노트 돌봄 알림장',
+          text: shareText,
+          url: appUrl
+        }).catch(e => console.warn('Share error:', e));
+      } else {
+        navigator.clipboard.writeText(shareText);
+        alert("📋 보호자 안내 문구가 복사되었습니다!\n카카오톡 대화방에 바로 [붙여넣기]하여 전송하세요.");
+      }
+    }
+
+    // ================= [보호자 기능] =================
+    async function guardianRequestApproval() {
+      var code = document.getElementById('guardian-code-input').value.replace(/\s+/g, '').trim();
+      var name = document.getElementById('guardian-name-input').value.trim();
+      var phone = document.getElementById('guardian-phone-input').value.trim();
+      var privacyCheck = document.getElementById('guardian-privacy-check');
+      var btn = document.getElementById('btn-guardian-request');
+
+      if (!code || !name || !phone) {
+        return alert("6자리 코드, 보호자 성함, 연락처를 모두 입력해 주세요.");
+      }
+
+      if (privacyCheck && !privacyCheck.checked) {
+        return alert("⚠️ [필수] 개인정보 수집 및 이용에 동의하셔야 연동 신청이 가능합니다.");
+      }
+
+      btn.disabled = true; btn.innerText = "센터에 승인 요청 중...";
+
+      var patient = null;
+      if (db) {
+        var { data } = await db.from('patients').select('*').eq('code', code).maybeSingle();
+        patient = data;
+      }
+      if (!patient) patient = fallbackPatients.find(p => p.code === code);
+
+      if (!patient) {
+        btn.disabled = false; btn.innerText = "센터에 연동 승인 요청하기";
+        return alert(`❌ 일치하는 어르신 코드가 없습니다. (테스트 코드: 739204)`);
+      }
+
+      var deviceToken = getDeviceToken();
+      var newReq = {
+        patient_code: code,
+        patient_name: patient.name,
+        guardian_name: name,
+        guardian_phone: phone,
+        device_token: deviceToken,
+        status: 'PENDING'
+      };
+
+      if (db) {
+        try {
+          await db.from('guardian_approvals').upsert([newReq], { onConflict: 'device_token' });
+        } catch (e) {}
+      }
+
+      localStorage.setItem('linked_patient_code', code);
+      localStorage.setItem('linked_patient_name', patient.name);
+      localStorage.setItem('linked_guardian_name', name);
+
+      btn.disabled = false; btn.innerText = "센터에 연동 승인 요청하기";
+      alert(`✅ [${patient.name} 어르신] 연동 승인 신청이 완료되었습니다!\n센터 관리자가 확인 후 승인하면 알림장이 열립니다.`);
+
+      await checkGuardianApprovalStatus();
+    }
+
+    async function checkGuardianApprovalStatus() {
+      var code = localStorage.getItem('linked_patient_code');
+      var patientName = localStorage.getItem('linked_patient_name') || '어르신';
+      var deviceToken = getDeviceToken();
+
+      if (!code) {
+        document.getElementById('guardian-unlinked').classList.remove('hidden');
+        document.getElementById('guardian-pending').classList.add('hidden');
+        document.getElementById('guardian-rejected').classList.add('hidden');
+        document.getElementById('guardian-linked').classList.add('hidden');
+        return;
+      }
+
+      var approvalRecord = null;
+      if (db) {
+        try {
+          var { data } = await db.from('guardian_approvals').select('*').eq('device_token', deviceToken).maybeSingle();
+          approvalRecord = data;
+        } catch (e) {}
+      }
+
+      if (approvalRecord && approvalRecord.status === 'APPROVED') {
+        document.getElementById('guardian-unlinked').classList.add('hidden');
+        document.getElementById('guardian-pending').classList.add('hidden');
+        document.getElementById('guardian-rejected').classList.add('hidden');
+        document.getElementById('guardian-linked').classList.remove('hidden');
+        await loadGuardianReports(code);
+      } else if (approvalRecord && approvalRecord.status === 'REJECTED') {
+        document.getElementById('guardian-unlinked').classList.add('hidden');
+        document.getElementById('guardian-pending').classList.add('hidden');
+        document.getElementById('guardian-rejected').classList.remove('hidden');
+        document.getElementById('guardian-linked').classList.add('hidden');
+      } else {
+        document.getElementById('guardian-unlinked').classList.add('hidden');
+        document.getElementById('guardian-pending').classList.remove('hidden');
+        document.getElementById('guardian-rejected').classList.add('hidden');
+        document.getElementById('guardian-linked').classList.add('hidden');
+        document.getElementById('pending-patient-name').innerText = `${patientName} 어르신`;
+      }
+    }
+
+    async function loadGuardianReports(code) {
+      var patientData = null;
+      var reportList = [];
+
+      if (db) {
+        try {
+          var { data: pData } = await db.from('patients').select('*').eq('code', code).maybeSingle();
+          if (pData) {
+            patientData = pData;
+            var { data: rData } = await db.from('care_reports').select('*').eq('patient_code', code).order('created_at', { ascending: false });
+            if (rData) reportList = rData;
+          }
+        } catch (e) {}
+      }
+
+      if (!patientData) {
+        patientData = fallbackPatients.find(p => p.code === code) || { name: '어르신', caregiver: '요양보호사' };
+      }
+
+      document.getElementById('disp-patient-title').innerText = `${patientData.name} 어르신 돌봄 일지`;
+      document.getElementById('disp-caregiver-title').innerText = `담당: ${patientData.caregiver || '요양보호사'}`;
+
+      var photoContainer = document.getElementById('disp-photo-container');
+      var photoImg = document.getElementById('disp-photo-img');
+      var feedbackSection = document.getElementById('guardian-feedback-section');
+
+      if (reportList && reportList.length > 0) {
+        var latest = reportList[0];
+        currentLatestReportId = latest.id;
+        var dateStr = latest.created_at ? new Date(latest.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '오늘';
+        
+        document.getElementById('disp-report-date').innerText = dateStr;
+        document.getElementById('disp-meal-val').innerText = latest.meal || '보통';
+        document.getElementById('disp-med-val').innerText = latest.med || '복용 완료';
+        document.getElementById('disp-memo-val').innerText = latest.memo || "특이사항 없이 평온하셨습니다.";
+
+        if (latest.photo && latest.photo.length > 20) {
+          photoImg.src = latest.photo;
+          photoContainer.classList.remove('hidden');
+        } else {
+          photoContainer.classList.add('hidden');
+        }
+
+        var statusBadge = document.getElementById('feedback-status-badge');
+        if (latest.feedback || latest.feedback_memo) {
+          statusBadge.innerText = `전달 완료 (${latest.feedback || '답글 남김'}) ✅`;
+          statusBadge.className = "text-[10px] text-emerald-600 font-bold";
+        } else {
+          statusBadge.innerText = "";
+        }
+        feedbackSection.classList.remove('hidden');
+      } else {
+        currentLatestReportId = null;
+        document.getElementById('disp-report-date').innerText = "기록 없음";
+        document.getElementById('disp-meal-val').innerText = "-";
+        document.getElementById('disp-med-val').innerText = "-";
+        document.getElementById('disp-memo-val').innerText = "아직 등록된 알림장이 없습니다.";
+        photoContainer.classList.add('hidden');
+        feedbackSection.classList.add('hidden');
+      }
+
+      renderGuardianHistoryList(reportList ? reportList.slice(1) : []);
+    }
+
+    async function sendGuardianQuickFeedback(text) {
+      if (!currentLatestReportId) return alert("등록된 알림장이 없습니다.");
+      var guardianName = localStorage.getItem('linked_guardian_name') || '보호자';
+
+      if (db) {
+        await db.from('care_reports').update({
+          feedback: text,
+          feedback_author: guardianName
+        }).eq('id', currentLatestReportId);
+      }
+
+      alert(`✅ [${text}] 인사가 요양보호사님께 전달되었습니다!`);
+      var code = localStorage.getItem('linked_patient_code');
+      if (code) await loadGuardianReports(code);
+    }
+
+    async function sendGuardianCustomFeedback() {
+      if (!currentLatestReportId) return alert("등록된 알림장이 없습니다.");
+      var input = document.getElementById('guardian-reply-input');
+      var reply = input ? input.value.trim() : '';
+      if (!reply) return alert("전달하실 감사 메모를 입력해 주세요.");
+
+      var guardianName = localStorage.getItem('linked_guardian_name') || '보호자';
+
+      if (db) {
+        await db.from('care_reports').update({
+          feedback_memo: reply,
+          feedback_author: guardianName
+        }).eq('id', currentLatestReportId);
+      }
+
+      alert("✅ 감사 메모가 요양보호사님께 안전하게 전달되었습니다!");
+      input.value = "";
+      var code = localStorage.getItem('linked_patient_code');
+      if (code) await loadGuardianReports(code);
+    }
+
+    function renderGuardianHistoryList(historyList) {
+      var container = document.getElementById('guardian-history-list');
+      var countEl = document.getElementById('guardian-history-count');
+      countEl.innerText = `이전 기록 ${historyList.length}건`;
+      container.innerHTML = "";
+
+      if (historyList.length === 0) {
+        container.innerHTML = `<div class="p-4 bg-white rounded-xl border text-center text-xs text-slate-400 shadow-sm">등록된 이전 알림장이 없습니다.</div>`;
+        return;
+      }
+
+      historyList.forEach(item => {
+        var dateStr = item.created_at ? new Date(item.created_at).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '이전 기록';
+        var card = document.createElement('div');
+        card.className = "bg-white p-4 rounded-2xl border space-y-2.5 shadow-sm";
+        card.innerHTML = `
+          <div class="flex justify-between items-center border-b pb-2">
+            <span class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+              <i class="fa-regular fa-clock text-emerald-600"></i>
+              <span>${dateStr}</span>
+            </span>
+            <div class="flex space-x-1 text-[11px]">
+              <span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-medium">식사: <strong>${item.meal}</strong></span>
+              <span class="bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-md font-medium">복약: <strong>${item.med}</strong></span>
+            </div>
+          </div>
+          ${item.photo ? `<div class="rounded-xl overflow-hidden border max-h-48 bg-slate-100 flex items-center justify-center"><img src="${item.photo}" class="w-full h-auto max-h-48 object-cover"></div>` : ''}
+          <div class="text-xs text-slate-600 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+            ${item.memo || '특이사항 없음'}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function unlinkGuardian() {
+      localStorage.removeItem('linked_patient_code');
+      localStorage.removeItem('linked_patient_name');
+      localStorage.removeItem('linked_guardian_name');
+      document.getElementById('guardian-linked').classList.add('hidden');
+      document.getElementById('guardian-pending').classList.add('hidden');
+      document.getElementById('guardian-rejected').classList.add('hidden');
+      document.getElementById('guardian-unlinked').classList.remove('hidden');
+      document.getElementById('guardian-code-input').value = "";
+      document.getElementById('guardian-name-input').value = "";
+      document.getElementById('guardian-phone-input').value = "";
+    }
+  </script>
+</body>
+</html>
